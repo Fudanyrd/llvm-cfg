@@ -75,14 +75,15 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
     }
     else if (strcmp(arg, "-c") == 0)
     {
-      this->is_compiling = arg;
-      buf.record((void **)(&is_compiling), arg);
+      stage = Stage::OBJECT;
     }
     else if (strcmp(arg, "-S") == 0)
     {
-      /** FIXME: generate assembly code. */
-      err_message = "Option '-S' is not supported in this wrapper.";
-      return false;
+      stage = Stage::ASSEMBLY;
+    }
+    else if (strcmp(arg, "-E") == 0)
+    {
+      stage = Stage::PREPROCESS;
     }
     else if (strcmp(arg, "-o") == 0)
     {
@@ -181,7 +182,7 @@ int CompilerWrapper::compile(char *input_file)
     {
       err_message = "Failed to execute 'mktemp --suffix=.ll'";
       normtemp(temp_files); // Clean up temporary files
-      return 1; // Return error code
+      return 1;             // Return error code
     }
     temp_files.append_line(fp, nullptr);
   }
@@ -212,7 +213,7 @@ int CompilerWrapper::compile(char *input_file)
   {
     err_message = "Failed to execute .c -> .ll";
     normtemp(temp_files); // Clean up temporary files
-    return 1; // Return error code
+    return 1;             // Return error code
   }
   argl.clear();
 
@@ -234,7 +235,7 @@ int CompilerWrapper::compile(char *input_file)
     {
       err_message = "Failed to execute .ll -> .ll, pass plugin FIXME";
       normtemp(temp_files); // Clean up temporary files
-      return 1; // Return error code
+      return 1;             // Return error code
     }
     argl.clear();
   }
@@ -242,7 +243,15 @@ int CompilerWrapper::compile(char *input_file)
   // .ll -> .o
   // clang -c .ll -o [output.o]
   argl.push(const_cast<char *>(cc_name)); // Add the C compiler name
-  argl.push("-c");
+  if (stage == Stage::OBJECT)
+  {
+    argl.push("-c");
+  }
+  else
+  {
+    // stage == Stage::ASSEMBLY
+    argl.push("-S");
+  }
   argl.push(temp_file); // Add the last temporary file
   if (output_file != nullptr)
   {
@@ -252,7 +261,7 @@ int CompilerWrapper::compile(char *input_file)
   argl.push(nullptr);
   if (cmd(argl.buf, envs.buf) != 0)
   {
-    err_message = "Failed to execute .ll -> .o";
+    err_message = "Failed to execute .ll -> .o or .s";
     normtemp(temp_files); // Clean up temporary files
     return 1;
   }
@@ -271,7 +280,8 @@ int CompilerWrapper::cmd(char **argv, char **envp)
     exit(1);
   }
 
-  if (print_debug_output && pid) {
+  if (print_debug_output && pid)
+  {
     for (int i = 0; argv[i] != nullptr; ++i)
     {
       fprintf(stderr, "%s ", argv[i]);
@@ -314,7 +324,7 @@ int CompilerWrapper::cmd(char **argv, char **envp)
 
 int CompilerWrapper::Execute(void)
 {
-  if (is_compiling)
+  if (this->stage == Stage::OBJECT || this->stage == Stage::ASSEMBLY)
   {
     for (char *input_file : input_files)
     {
@@ -326,6 +336,8 @@ int CompilerWrapper::Execute(void)
 
     return 0;
   }
+
+  // preprocessing or linking does not require sancov flags.
 
   struct ArgList envs, argl;
   for (const char *env = env_start; env < env_end(); env = buf.next(env))

@@ -109,7 +109,6 @@ private:
 
   const char *debug{nullptr};
   const char *opt_level{nullptr};
-  const char *is_compiling{nullptr};
   std::vector<char *> input_files;
   const char *output_file{nullptr};
   const char *lang{nullptr}; /* c, c++ */
@@ -167,6 +166,13 @@ private:
     }
     fprintf(stderr, "\n");
   }
+
+  enum class Stage {
+    LINK = 0, // ??
+    PREPROCESS, // -E, execute preprocessor
+    ASSEMBLY, // -S, generage .s file
+    OBJECT, // -c, generate .i file
+  } stage{Stage::LINK};
 };
 
 #endif // WRAPPER_H
