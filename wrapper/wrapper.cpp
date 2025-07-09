@@ -107,6 +107,11 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
     {
       defines.push_back((char *)arg);
     }
+    else if (strcmp(arg, "-emit-llvm") == 0) {
+      output_llvm = true;
+    } else {
+      flags.push_back((char *)arg);
+    }
   }
 
   if (input_files.empty())
@@ -238,6 +243,26 @@ int CompilerWrapper::compile(char *input_file)
       return 1;             // Return error code
     }
     argl.clear();
+  }
+
+  if (stage == Stage::ASSEMBLY || output_llvm) 
+  {
+    argl.push((char *)"/usr/bin/cp");
+    argl.push(temp_file);
+    if (output_file) {
+      argl.push((char *)output_file);
+    } else {
+      argl.push((char *)".");
+    }
+    argl.push(nullptr);
+
+    if (cmd(argl.buf, envs.buf)) {
+      err_message = "cannot copy temp file.";
+      normtemp(temp_files);
+      return 1;
+    }
+
+    return 0;
   }
 
   // .ll -> .o

@@ -117,6 +117,7 @@ private:
     Lang::C
   };
   bool print_debug_output{true};
+  bool output_llvm{false};
 
   std::vector<char *> include_dirs;
   std::vector<char *> defines;
