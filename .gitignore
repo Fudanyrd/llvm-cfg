@@ -2,3 +2,7 @@
 *.zip
 *.tar.gz
 build
+*.o
+*.a
+*.so
+*.out
