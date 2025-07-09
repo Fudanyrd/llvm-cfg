@@ -8,10 +8,10 @@
 #include <unistd.h>
 #include <unordered_map>
 
-static char *pass_plugins[] = {
-    "-fpass-plugin=" CFG_EDGE_PASS,
+static const char *pass_plugins[] = {
+    "-fpass-plugin=" FUNC_ENTRY_PASS,
     "-fpass-plugin=" FUNC_CALL_PASS,
-    "-fpass-plugin=" FUNC_ENTRY_PASS};
+    "-fpass-plugin=" CFG_EDGE_PASS};
 
 bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
 {
@@ -180,7 +180,7 @@ int CompilerWrapper::compile(char *input_file)
     if (!fp)
     {
       err_message = "Failed to execute 'mktemp --suffix=.ll'";
-      rmtemp(temp_files); // Clean up temporary files
+      normtemp(temp_files); // Clean up temporary files
       return 1; // Return error code
     }
     temp_files.append_line(fp, nullptr);
@@ -211,7 +211,7 @@ int CompilerWrapper::compile(char *input_file)
   if (cmd(argl.buf, envs.buf) != 0)
   {
     err_message = "Failed to execute .c -> .ll";
-    rmtemp(temp_files); // Clean up temporary files
+    normtemp(temp_files); // Clean up temporary files
     return 1; // Return error code
   }
   argl.clear();
@@ -233,7 +233,7 @@ int CompilerWrapper::compile(char *input_file)
     if (cmd(argl.buf, envs.buf) != 0)
     {
       err_message = "Failed to execute .ll -> .ll, pass plugin FIXME";
-      rmtemp(temp_files); // Clean up temporary files
+      normtemp(temp_files); // Clean up temporary files
       return 1; // Return error code
     }
     argl.clear();
@@ -253,7 +253,7 @@ int CompilerWrapper::compile(char *input_file)
   if (cmd(argl.buf, envs.buf) != 0)
   {
     err_message = "Failed to execute .ll -> .o";
-    rmtemp(temp_files); // Clean up temporary files
+    normtemp(temp_files); // Clean up temporary files
     return 1;
   }
   argl.clear();

@@ -113,7 +113,6 @@ private:
   std::vector<char *> input_files;
   const char *output_file{nullptr};
   const char *lang{nullptr}; /* c, c++ */
-  const char *pass_plugins[3];
   enum Lang link_lang
   {
     Lang::C
@@ -155,6 +154,18 @@ private:
     }
     argl.push(nullptr);
     (void)cmd(argl.buf, NULL); // Ignore the return value of cleanup command
+  }
+
+  void normtemp(StringBuf &buf) {
+    // print the temp files, but do not remove them.
+    fprintf(stderr, "[TEMP] rm -f ");
+    char *temp_file = (char *)buf.buffer();
+    for (int i = 0; i < 4; i++)
+    {
+      fprintf(stderr, "%s ", temp_file);
+      temp_file = (char *)buf.next(temp_file);
+    }
+    fprintf(stderr, "\n");
   }
 };
 
