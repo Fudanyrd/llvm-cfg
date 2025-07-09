@@ -2,9 +2,8 @@
 
 extern "C" int main(int argc, char **argv, char **envp) {
   CompilerWrapper wrapper;
-  #ifdef LINK_USING_CXX
+  if (strcmp(CFG_SRC_DIR "/cxx.cpp", __FILE__) == 0)
     wrapper.SetLang(CompilerWrapper::Lang::CXX);
-  #endif // LINK_USING_CXX
 
   if (!wrapper.ParseArgs(argc, argv, envp)) {
     fprintf(stderr, "Error: %s\n", wrapper.GetErr());

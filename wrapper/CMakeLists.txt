@@ -9,6 +9,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_definitions(-DCFG_EDGE_PASS="${CMAKE_CURRENT_BINARY_DIR}/../pass/cfg-edge/cfg-edge.so")
 add_definitions(-DFUNC_CALL_PASS="${CMAKE_CURRENT_BINARY_DIR}/../pass/func-call/func-call.so")
 add_definitions(-DFUNC_ENTRY_PASS="${CMAKE_CURRENT_BINARY_DIR}/../pass/func-entry/func-entry.so")
+add_definitions(-DCFG_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(wrapper STATIC 
     wrapper.cpp
@@ -17,6 +18,5 @@ add_library(wrapper STATIC
 add_executable(cc cc.cpp)
 target_link_libraries(cc wrapper)
 
-add_definitions(-DLINK_USING_CXX)
 add_executable(cxx cxx.cpp)
 target_link_libraries(cxx wrapper)
