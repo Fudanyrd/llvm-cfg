@@ -122,6 +122,7 @@ private:
   std::vector<char *> include_dirs;
   std::vector<char *> defines;
   std::vector<char *> flags;
+  std::vector<char *> margs; /* -MD, -MT, -MF, etc */
 
   struct StringBuf buf, aux;
   char *arg_start{nullptr} /* = buf.buffer() */;

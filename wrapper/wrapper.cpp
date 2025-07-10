@@ -18,6 +18,14 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
   // Implementation of argument parsing
   // This function will populate the member variables based on the command line arguments
 
+  if (print_debug_output) {
+    fprintf(stderr, "Initial args = ");
+    for (int i = 1; argv[i]; i++) {
+      fprintf(stderr, "%s ", argv[i]);
+    }
+    fprintf(stderr, "\n");
+  }
+
   assert(argv && "argv should not be null");
   assert(envp && "envp should not be null");
   for (int i = 0; i < argc; ++i)
@@ -38,6 +46,7 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
 
   bool set_lang = false;
   bool set_output = false;
+  bool mf = false;
   const char *aend = arg_end();
   for (const char *arg = buf.next(arg_start); arg < aend; arg = buf.next(arg))
   {
@@ -53,6 +62,11 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
       this->output_file = arg;
       buf.record((void **)(&output_file), arg);
       set_output = false;
+      continue;
+    }
+    else if (mf) {
+      mf = false;
+      margs.push_back((char *)arg);
       continue;
     }
 
@@ -106,6 +120,13 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
     else if (strncmp(arg, "-D", 2) == 0)
     {
       defines.push_back((char *)arg);
+    }
+    else if (strcmp(arg, "-MF") == 0 || strcmp(arg, "-MT") == 0) {
+      margs.push_back((char *)arg);
+      mf = true;
+    }
+    else if (strncmp(arg, "-M", 2) == 0) {
+      margs.push_back((char *)arg);
     }
     else if (strcmp(arg, "-emit-llvm") == 0) {
       output_llvm = true;
@@ -213,6 +234,9 @@ int CompilerWrapper::compile(char *input_file)
   {
     argl.push(flag); // Add additional flags
   }
+  for (char *marg : margs) {
+    argl.push(marg);
+  }
   argl.push(nullptr);
   if (cmd(argl.buf, envs.buf) != 0)
   {
@@ -262,6 +286,7 @@ int CompilerWrapper::compile(char *input_file)
       return 1;
     }
 
+    rmtemp(temp_files);
     return 0;
   }
 
