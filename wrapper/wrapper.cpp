@@ -13,17 +13,21 @@ static const char *pass_plugins[] = {
     "-fpass-plugin=" FUNC_CALL_PASS,
     "-fpass-plugin=" CFG_EDGE_PASS};
 
+static char input_buf[2048];
+
 bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
 {
   // Implementation of argument parsing
   // This function will populate the member variables based on the command line arguments
 
-  if (print_debug_output) {
-    fprintf(stderr, "Initial args = ");
-    for (int i = 1; argv[i]; i++) {
+  if (print_debug_output)
+  {
+    fprintf(stderr, "\033[01;36m[#]\033[0;m Initial args = [");
+    for (int i = 1; argv[i]; i++)
+    {
       fprintf(stderr, "%s ", argv[i]);
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, "]\n");
   }
 
   assert(argv && "argv should not be null");
@@ -64,7 +68,8 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
       set_output = false;
       continue;
     }
-    else if (mf) {
+    else if (mf)
+    {
       mf = false;
       margs.push_back((char *)arg);
       continue;
@@ -109,9 +114,7 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
     }
     else if (strcmp(arg, "-") == 0)
     {
-      /** FIXME: input from stdin */
-      err_message = "input from stdin is not implemented.";
-      return false;
+      input_files.push_back((char *)"-");
     }
     else if (strncmp(arg, "-I", 2) == 0)
     {
@@ -121,16 +124,21 @@ bool CompilerWrapper::ParseArgs(int argc, char **argv, char **envp)
     {
       defines.push_back((char *)arg);
     }
-    else if (strcmp(arg, "-MF") == 0 || strcmp(arg, "-MT") == 0) {
+    else if (strcmp(arg, "-MF") == 0 || strcmp(arg, "-MT") == 0)
+    {
       margs.push_back((char *)arg);
       mf = true;
     }
-    else if (strncmp(arg, "-M", 2) == 0) {
+    else if (strncmp(arg, "-M", 2) == 0)
+    {
       margs.push_back((char *)arg);
     }
-    else if (strcmp(arg, "-emit-llvm") == 0) {
+    else if (strcmp(arg, "-emit-llvm") == 0)
+    {
       output_llvm = true;
-    } else {
+    }
+    else
+    {
       flags.push_back((char *)arg);
     }
   }
@@ -234,11 +242,12 @@ int CompilerWrapper::compile(char *input_file)
   {
     argl.push(flag); // Add additional flags
   }
-  for (char *marg : margs) {
+  for (char *marg : margs)
+  {
     argl.push(marg);
   }
   argl.push(nullptr);
-  if (cmd(argl.buf, envs.buf) != 0)
+  if (cmd(argl.buf, envs.buf, strcmp(input_file, "-") == 0) != 0)
   {
     err_message = "Failed to execute .c -> .ll";
     normtemp(temp_files); // Clean up temporary files
@@ -269,18 +278,22 @@ int CompilerWrapper::compile(char *input_file)
     argl.clear();
   }
 
-  if (stage == Stage::ASSEMBLY || output_llvm) 
+  if (stage == Stage::ASSEMBLY || output_llvm)
   {
     argl.push((char *)"/usr/bin/cp");
     argl.push(temp_file);
-    if (output_file) {
+    if (output_file)
+    {
       argl.push((char *)output_file);
-    } else {
+    }
+    else
+    {
       argl.push((char *)".");
     }
     argl.push(nullptr);
 
-    if (cmd(argl.buf, envs.buf)) {
+    if (cmd(argl.buf, envs.buf))
+    {
       err_message = "cannot copy temp file.";
       normtemp(temp_files);
       return 1;
@@ -321,8 +334,16 @@ int CompilerWrapper::compile(char *input_file)
   return 0;
 }
 
-int CompilerWrapper::cmd(char **argv, char **envp)
+int CompilerWrapper::cmd(char **argv, char **envp, bool read_stdin)
 {
+  int pipfd[2];
+  if (read_stdin) {
+    if (!pipe(pipfd)) {
+      perror("pipe");
+      return 1;
+    }
+  }
+
   pid_t pid = fork();
   if (pid < 0)
   {
@@ -341,6 +362,12 @@ int CompilerWrapper::cmd(char **argv, char **envp)
 
   if (pid == 0)
   {
+    // Child process
+    if (read_stdin) {
+      close(pipfd[1]);
+      dup2(pipfd[0], STDIN_FILENO);
+    }
+
     int fd = open("/dev/null", O_WRONLY);
     if (fd < 0)
     {
@@ -348,7 +375,6 @@ int CompilerWrapper::cmd(char **argv, char **envp)
       exit(1);
     }
     dup2(fd, STDOUT_FILENO); // Redirect stdout to the same as the parent
-    // Child process
     if (execve(argv[0], argv, envp) < 0)
     {
       perror("execve");
@@ -359,6 +385,17 @@ int CompilerWrapper::cmd(char **argv, char **envp)
   else
   {
     // Parent process
+    if (read_stdin) {
+      close(pipfd[0]);
+
+      /** read from stdin and send the data to the pipe. */
+      ssize_t nb;
+      while ((nb = read(1, input_buf, sizeof(input_buf))) > 0) {
+        write(pipfd[1], input_buf, nb);
+      }
+      close(pipfd[1]);
+    }
+
     int status;
     waitpid(pid, &status, 0);
     if (WIFEXITED(status))
@@ -418,6 +455,14 @@ int CompilerWrapper::Execute(void)
     arg = buf.next(arg);
   }
   argl.push(nullptr);
+
+  bool read_stdin = false;
+  for (char *input_file : input_files) {
+    if (strcmp(input_file, "-") == 0) {
+      read_stdin = true;
+      break;
+    }
+  }
 
   return cmd(argl.buf, envs.buf);
 }

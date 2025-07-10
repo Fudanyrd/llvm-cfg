@@ -140,7 +140,7 @@ private:
   }
 
   int compile(char *input_file);
-  int cmd(char **argv, char **envp);
+  int cmd(char **argv, char **envp, bool read_stdin = false);
 
   void rmtemp(StringBuf &buf)
   {
