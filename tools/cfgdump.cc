@@ -139,6 +139,8 @@ int main(int argc, char **argv) {
          "compile the program with -fsanitize-coverage=trace-pc-guard,pc-table "
          "to generate this section.\n");
   void *start_sancov_guard = (void *)sancov_guard_sec->sh_addr;
+  void *end_sancov_guard = (void *)(sancov_guard_sec->sh_addr 
+                                  + sancov_guard_sec->sh_size);
 
   /** Load intra control-flow, ie. edges between basic blocks
    *  inside a function.
@@ -174,6 +176,11 @@ int main(int argc, char **argv) {
         "Invalid edge in __sancov_cfg_edges section\n"
         "compile the program with -fsanitize-coverage=trace-pc-guard,pc-table "
         "to generate this section.\n");
+    assert(
+        edge.src < end_sancov_guard && edge.dst < end_sancov_guard &&
+        "Invalid edge in __sancov_cfg_edges section\n"
+        "compile the program with -fsanitize-coverage=trace-pc-guard,pc-table "
+        "to generate this section.\n");
     std::pair<void *, void *> dat;
     dat.first = edge.src;
     dat.second = edge.dst;
@@ -203,6 +210,11 @@ int main(int argc, char **argv) {
              "compile the program with "
              "-fsanitize-coverage=trace-pc-guard,pc-table "
              "to generate this section.\n");
+      assert(entry.guard < end_sancov_guard &&
+             "Invalid entry in __sancov_entries section\n"
+             "compile the program with "
+             "-fsanitize-coverage=trace-pc-guard,pc-table "
+             "to generate this section.\n");
       func_to_entry_block[entry.func] = entry.guard;
     }
   }
@@ -225,6 +237,11 @@ int main(int argc, char **argv) {
     SancovFuncCall &call = calls[i];
     if (call.func && call.guard) {
       assert(call.guard >= start_sancov_guard &&
+             "Invalid call in __sancov_func_calls section\n"
+             "compile the program with "
+             "-fsanitize-coverage=trace-pc-guard,pc-table "
+             "to generate this section.\n");
+      assert(call.guard < end_sancov_guard &&
              "Invalid call in __sancov_func_calls section\n"
              "compile the program with "
              "-fsanitize-coverage=trace-pc-guard,pc-table "
