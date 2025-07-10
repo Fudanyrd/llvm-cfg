@@ -9,5 +9,6 @@ endif()
 add_subdirectory(tools)
 add_subdirectory(pass)
 add_subdirectory(wrapper)
+add_subdirectory(demo)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
