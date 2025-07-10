@@ -3,6 +3,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fsanitize=undefined")
+  add_definitions(-DCFG_PRINT_DEBUG_OUTPUT)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

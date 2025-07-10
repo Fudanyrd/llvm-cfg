@@ -116,7 +116,11 @@ private:
   {
     Lang::C
   };
+#ifdef CFG_PRINT_DEBUG_OUTPUT
   bool print_debug_output{true};
+#else
+  bool print_debug_output{false};
+#endif // CFG_PRINT_DEBUG_OUTPUT
   bool output_llvm{false};
 
   std::vector<char *> include_dirs;
