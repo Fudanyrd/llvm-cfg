@@ -1,4 +1,4 @@
-
+.vscode
 *.zip
 *.tar.gz
 build
@@ -6,3 +6,4 @@ build
 *.a
 *.so
 *.out
+*.log

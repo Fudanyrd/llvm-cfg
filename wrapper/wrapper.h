@@ -163,7 +163,7 @@ private:
 
   void normtemp(StringBuf &buf) {
     // print the temp files, but do not remove them.
-    fprintf(stderr, "[TEMP] rm -f ");
+    fprintf(stderr, "\033[01;92m[TEMP]\033[0;m rm -f ");
     char *temp_file = (char *)buf.buffer();
     for (int i = 0; i < 4; i++)
     {
