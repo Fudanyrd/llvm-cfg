@@ -12,12 +12,12 @@ void StringBuf::overflow(size_t new_capacity)
 
     for (auto &ptr : ptrs)
     {
-      *ptr = reinterpret_cast<void *>(reinterpret_cast<char *>(*ptr) + offset); // Update pointers
+      *ptr = ((*ptr) + offset); // Update pointers
     }
   }
 }
 
-void StringBuf::append(const char *str, size_t len, void **ptr)
+void StringBuf::append(const char *str, size_t len, cbuf_t ptr)
 {
   /** handle buffer overflow */
   size_t cap = capacity;
@@ -36,16 +36,16 @@ void StringBuf::append(const char *str, size_t len, void **ptr)
   size += len + 1; // Update the size of the buffer
   if (ptr != nullptr)
   {
-    *ptr = reinterpret_cast<void *>(start); // Store the pointer to the new string
+    *ptr = (start); // Store the pointer to the new string
     this->ptrs.push_back(ptr);              // Store the pointer in the vector
   }
 }
 
-void StringBuf::append_line(FILE *fp, void **ptr)
+void StringBuf::append_line(FILE *fp, cbuf_t ptr)
 {
   char ch;
   if (ptr) {
-    *ptr = reinterpret_cast<void *>(buf + size); // Store the pointer to the start of the line
+    *ptr = (buf + size); // Store the pointer to the start of the line
     this->ptrs.push_back(ptr); // Store the pointer in the vector
   }
 
@@ -62,4 +62,61 @@ void StringBuf::append_line(FILE *fp, void **ptr)
     overflow(capacity * 2); // Ensure there is enough space for the null terminator
   }
   buf[size++] = '\0'; // Null-terminate the string
+}
+
+void StringBuf::append_line(int fd, cbuf_t ptr)
+{
+  char ch;
+  if (ptr) {
+    *ptr = (buf + size); // Store the pointer to the start of the line
+    this->ptrs.push_back(ptr); // Store the pointer in the vector
+  }
+
+  auto nb = read(fd, &ch, 1);
+  while (nb > 0 && ch != '\n')
+  {
+    if (size == capacity) {
+      overflow(capacity * 2); // Ensure there is enough space for the new character
+    }
+    buf[size++] = ch; // Append the character to the buffer
+    nb = read(fd, &ch, 1);
+  }
+
+  // append 0
+  if (size == capacity) {
+    overflow(capacity * 2); // Ensure there is enough space for the null terminator
+  }
+  buf[size++] = '\0'; // Null-terminate the string
+}
+
+void StringBuf::append_concated(cbuf_t dst, int count, ...) {
+  va_list vl;
+  va_start(vl, count);
+
+  if (dst != nullptr) {
+    *dst = buf + this->size;
+    ptrs.push_back(dst);
+  }
+
+  for (int i = 0; i < count; i++) {
+    const char *src = va_arg(vl, const char *);
+    size_t len = strlen(src);
+    
+    size_t cap = this->capacity;
+    while (cap < len + this->size) {
+      cap *= 2;
+    }
+    if (cap > capacity) {
+      overflow(cap);
+    }
+
+    strcpy(buf + size, src);
+    this->size += len;
+  }
+
+  va_end(vl);
+  if (this->capacity == this->size) {
+    overflow(this->capacity * 2);
+    buf[this->size++] = 0;
+  }
 }
