@@ -21,3 +21,9 @@ target_link_libraries(cc wrapper)
 
 add_executable(cxx cxx.cpp)
 target_link_libraries(cxx wrapper)
+
+add_library(cfgmalloc_static STATIC cfgmalloc.c)
+set_target_properties(cfgmalloc_static PROPERTIES OUTPUT_NAME "cfgmalloc")
+
+add_library(cfgmalloc_shared SHARED cfgmalloc.c)
+set_target_properties(cfgmalloc_shared PROPERTIES OUTPUT_NAME "cfgmalloc")
