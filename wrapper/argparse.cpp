@@ -237,7 +237,7 @@ int ArgGenerator::execute() const {
       break;
     }
   }
-  if (parser.output_file || parser.input_files.size() == 1) {
+  if (parser.output_file) {
     alst.push("-o");
     alst.push(parser.output_file);
   }
