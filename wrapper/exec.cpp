@@ -106,3 +106,68 @@ int Exec::run() {
 
   /** It is your task to read from sout, serr and close them. */
 }
+
+int Exec::find_exe(const char *basename, CharStream &cs) const
+{
+  if (basename == nullptr) {
+    return 1;
+  }
+  const size_t baselen = strlen(basename);
+  cs.clear();
+  if (basename[0] == '/') {
+    // absolute path.
+    int fd = (open(basename, O_RDONLY));
+    (void)close(fd);
+    cs.append(basename);
+    return fd >= 0 ? 0 : 1;
+  }
+
+  const char *pathbuf = nullptr;
+  for (int i = 0; envp[i] != nullptr; envp[i]++) {
+    if (strncmp("PATH=", envp[i], 5) == 0) {
+      pathbuf = envp[i] + 5;
+      break;
+    }
+  }
+
+  if (pathbuf == nullptr) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, ERROR_PREFIX "PATH is not set!\n");
+    #endif
+    return 1;
+  }
+
+  cs.clear();
+
+  /** split by : */
+  size_t i = 0;
+  FileDescriptor fobj;
+  while (pathbuf[i] != 0) {
+    size_t j = i + 1;
+    while (pathbuf[j] != ':' && pathbuf[j] != 0) {
+      j++;
+    }
+
+    if (j > i) {
+      cs.extend(j - i + 1 + baselen + 1); 
+      cs.append(pathbuf + i, j - i);
+      cs.append('/');
+      cs.append(basename);
+      #ifdef CFG_PRINT_DEBUG_OUTPUT
+        fprintf(stderr, DEBUG_PREFIX "trying %s\n", cs.buffer());
+      #endif 
+
+      fobj.setFd(open(cs.buffer(), O_RDONLY));
+      if (fobj.valid()) {
+        return 0;
+      }
+    }
+
+    /** advance. */
+    cs.clear();
+    i = pathbuf[j] == ':' ? j + 1 : j;
+  }
+
+  /** not found. */
+  return 1;
+}

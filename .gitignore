@@ -2,6 +2,7 @@
 *.zip
 *.tar.gz
 build
+tmp
 *.o
 *.a
 *.so
@@ -9,3 +10,6 @@ build
 *.log
 .ida
 .apt
+
+.*.c
+.*.cpp

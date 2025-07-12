@@ -25,6 +25,11 @@ struct Exec {
 
   int run(void);
 
+  /** Find the name of a executable from $PATH.
+   * Eg, rm -> /usr/bin/rm in the stream.
+   */
+  int find_exe(const char *basename, CharStream &cs) const;
+
  private:
   FileDescriptor *sout{nullptr};
   FileDescriptor *serr{nullptr};
