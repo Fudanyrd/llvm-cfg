@@ -185,3 +185,26 @@ void CharStream::append(const char *word, size_t len)
   memcpy(this->buf + this->size, (const void *)word, len);
   this->size += len;
 }
+
+void CharStream::replace_suffix(const char *path, const char *suffix) {
+  size_t l = strlen(path);
+  const size_t lpath = l;
+  if (l == 0) {
+    this->append(suffix);
+    return;
+  }
+
+  while (l > 0 && path[l] != '.') {
+    l -= 1;
+  }
+
+  if (path[l] == '.') {
+    if (l != 0) {
+      this->append(path, l - 1);
+    }
+    this->append(suffix);
+  } else {
+    this->append(path, lpath);
+    this->append(suffix);
+  }
+}

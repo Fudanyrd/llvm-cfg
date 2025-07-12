@@ -212,6 +212,8 @@ struct CharStream {
     }
   }
 
+  void replace_suffix(const char *path, const char *suffix);
+
  private:
   char *buf{nullptr};
   size_t size, capacity{INIT_CAPACITY};
