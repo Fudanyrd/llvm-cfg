@@ -31,6 +31,21 @@
 #define CFG_MKTEMP_TEMPLATE "/tmp/tmp.XXXXXXXXXX"
 #endif
 
+#ifndef SANCOV_DEFAULT_DEF
+#define SANCOV_DEFAULT_DEF "-fsanitize-coverage=trace-pc-guard,pc-table,no-prune"
+#endif // SANCOV_DEFAULT_DEF
+
+#ifndef CFG_EDGE_PASS
+#error "CFG_EDGE_PASS is not defined"
+#endif
+#ifndef FUNC_CALL_PASS
+#error "FUNC_CALL_PASS is not defined"
+#endif
+#ifndef FUNC_ENTRY_PASS
+#error "FUNC_ENTRY_PASS is not defined"
+#endif
+
+
 typedef const char *ccharptr_t;
 typedef ccharptr_t *cbuf_t;
 

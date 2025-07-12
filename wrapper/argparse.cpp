@@ -237,6 +237,9 @@ int ArgGenerator::execute() const {
     int ret = 0;
     CharStream output(64);
     CharStream temp(64);
+  #ifdef CFG_PRINT_DEBUG_OUTPUT
+    CharStream ll_output(128);
+  #endif 
     Exec mktemp;
     if (mktemp.mktemp(false, temp, CFG_MKTEMP_TEMPLATE ".ll", elst.buf) != 0) {
       /** failure. */
@@ -246,6 +249,9 @@ int ArgGenerator::execute() const {
       output.replace_suffix(input, parser.output_suffix());
       const char *opath = (parser.input_files.size() <= 1 && parser.output_file) 
         ? parser.output_file : output.buffer(); 
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      ll_output.replace_suffix(opath, ".ll");
+    #endif
       if (force_emit_ll(input, temp.buffer()) != 0) {
         ret = 1;
         break;
@@ -255,6 +261,10 @@ int ArgGenerator::execute() const {
         break;
       }
       output.clear();
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      (void)Exec::cp(temp.buffer(), ll_output.buffer(), elst.buf);
+      ll_output.clear();
+    #endif
     }
 
     Exec::rm(false, true, temp.buffer(), elst.buf);
