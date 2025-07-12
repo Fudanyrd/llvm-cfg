@@ -20,6 +20,9 @@
 #define INIT_CAPACITY 4096 // Default initial capacity for the buffer
 #endif                   // INIT_CAPACITY
 
+#define DEBUG_PREFIX "\033[01;36m[#]\033[0;m "
+#define ERROR_PREFIX "\033[01;31m[ERR]\033[0;m "
+
 typedef const char *ccharptr_t;
 typedef ccharptr_t *cbuf_t;
 
@@ -151,10 +154,10 @@ private:
 };
 
 struct CharStream {
-  CharStream() {
-    buf = (char *)malloc(INIT_CAPACITY);
+  CharStream(size_t cap = INIT_CAPACITY) {
+    buf = (char *)malloc(cap);
     size = 0;
-    capacity = INIT_CAPACITY;
+    capacity = cap;
   }
   ~CharStream() { free(buf); }
 
@@ -181,12 +184,47 @@ struct CharStream {
     return nb == 0;
   }
 
+  void clear() {
+    size = 0;
+  }
+
+  void join(int count, ...);
+  void append(const char *word);
+  void append(const char *word, size_t len);
+  void append(char ch);
+
+  void extend(size_t newsize) {
+    newsize += this->size;
+    size_t newcap = this->capacity;
+    while (newcap < newsize) {
+      newcap *= 2;
+    }
+    if (newcap > this->capacity) {
+      this->overflow(newcap);
+    }
+  }
+
  private:
   char *buf{nullptr};
   size_t size, capacity{INIT_CAPACITY};
 
   void overflow() {
     size_t cap = capacity * 2;
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, DEBUG_PREFIX "CharStream::overflow(%ld)\n", cap);
+    #endif
+    buf = (char *)realloc(buf, cap);
+    if (buf == nullptr) {
+      throw std::bad_alloc{};
+    }
+    capacity = cap;
+  }
+
+  void overflow(size_t newcap) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, DEBUG_PREFIX "CharStream::overflow(%ld)\n", newcap);
+    #endif
+    size_t cap = newcap;
     buf = (char *)realloc(buf, cap);
     if (buf == nullptr) {
       throw std::bad_alloc{};

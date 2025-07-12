@@ -120,3 +120,68 @@ void StringBuf::append_concated(cbuf_t dst, int count, ...) {
     buf[this->size++] = 0;
   }
 }
+
+void CharStream::join(int count, ...) {
+  va_list vl;
+  va_start(vl, count);
+
+  for (int i = 0; i < count; i++) {
+    const char *src = va_arg(vl, const char *);
+    if (!src) {
+      continue;
+    }
+    size_t l = strlen(src);
+
+    size_t newcap = capacity;
+    while (l + size + 1 > newcap) {
+      newcap *= 2;
+    }
+    if (newcap > capacity) {
+      this->overflow(newcap);
+    }
+
+    strcpy(this->buf + this->size, src);
+    this->size += l;
+  }
+  va_end(vl);
+  this->buf[this->size++] = 0;
+}
+
+void CharStream::append(const char *src)
+{
+  size_t l = strlen(src);
+  l += 1;
+
+  size_t newcap = capacity;
+  while (l + size > newcap) {
+    newcap *= 2;
+  }
+  if (newcap > capacity) {
+    this->overflow(newcap);
+  }
+
+  memcpy(this->buf + this->size, (const void *)src, l);
+  this->size += l;
+}
+
+void CharStream::append(char ch) {
+  if (size >= capacity) {
+    overflow();
+  }
+  this->buf[this->size] = ch;
+  this->size += 1;
+}
+
+void CharStream::append(const char *word, size_t len)
+{
+  size_t newcap = capacity;
+  while (newcap < len + this->size) {
+    newcap *= 2;
+  }
+  if (newcap > this->capacity) {
+    this->overflow(newcap);
+  } 
+
+  memcpy(this->buf + this->size, (const void *)word, len);
+  this->size += len;
+}
