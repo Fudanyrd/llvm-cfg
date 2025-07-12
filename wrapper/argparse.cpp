@@ -1,6 +1,29 @@
 #include "argparse.h"
 #include "exec.h"
 
+const char *ArgParse::output_suffix() const {
+  const char *ret;
+  switch (this->stage) {
+    case (Stage::LINK): {
+      ret = ".out";
+      break;
+    }
+    case (Stage::ASSEMBLY): {
+      ret = this->output_llvm ? ".ll" : ".s";
+      break;
+    }
+    case (Stage::OBJECT): {
+      ret = this->output_llvm ? ".bc" : ".o";
+      break;
+    }
+    case (Stage::PREPROCESS): {
+      ret = ".i";
+    }
+  }
+
+  return ret;
+}
+
 ArgParse::ArgParse(char **argv, char **envp) {
   if (true) {
     FileDescriptor fobj;

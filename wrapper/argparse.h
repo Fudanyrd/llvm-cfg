@@ -24,6 +24,8 @@ class ArgParse {
     return env_buf;
   }
 
+  const char *output_suffix() const;
+
  // private:
   /** NOTE: these fields are immutable. Modify them at your own risk. */
   const char *cc_name{nullptr}; // [env] CFG_CC=
@@ -92,4 +94,5 @@ class ArgGenerator {
   std::vector<const char *> extra_link_args;
   std::vector<const char *> extra_pass_names;
   StringBuf aux_buf{StringBuf(1024)};
+  CharStream stream;
 };
