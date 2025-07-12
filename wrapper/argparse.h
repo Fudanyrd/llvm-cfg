@@ -25,6 +25,10 @@ class ArgParse {
   }
 
   const char *output_suffix() const;
+  static const char *suffix_of(const char *path);
+  bool runpass() const {
+    return this->stage == Stage::ASSEMBLY || this->stage == Stage::OBJECT;
+  }
 
  // private:
   /** NOTE: these fields are immutable. Modify them at your own risk. */
@@ -83,8 +87,8 @@ class ArgGenerator {
     return *this;
   }
 
-  ArgGenerator &add_pass_names(const char *pass) {
-    assert(0 && "not implemented");
+  ArgGenerator &add_pass_plugin(const char *pass) {
+    extra_pass_names.push_back(pass);
     return *this;
   }
 
@@ -95,4 +99,8 @@ class ArgGenerator {
   std::vector<const char *> extra_pass_names;
   StringBuf aux_buf{StringBuf(1024)};
   CharStream stream;
+
+  /** output must be .ll */
+  int force_emit_ll(const char *input, const char *output) const;
+  int compile_ll(const char *ll_input, const char *output) const;
 };
