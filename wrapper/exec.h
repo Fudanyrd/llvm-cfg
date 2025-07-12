@@ -40,6 +40,7 @@ struct Exec {
   static int rm(bool recursive, bool force, const char *arg,
                 const char **envp);
 
+  static int cp(const char *src, const char *dst, const char **envp);
  private:
   FileDescriptor *sout{nullptr};
   FileDescriptor *serr{nullptr};

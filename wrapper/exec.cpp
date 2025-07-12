@@ -272,3 +272,28 @@ int Exec::rm(bool recurse, bool force,
   exe_rm.envp = envp;
   return exe_rm.run();
 }
+
+int Exec::cp(const char *src, const char *dst, const char **envp) {
+  Exec which_cp;
+  which_cp.envp = envp;
+  CharStream cp_path(64);
+  int ret = which_cp.find_exe("cp", cp_path);
+  if (ret != 0) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, ERROR_PREFIX "cannot locate cp\n");
+    #endif
+    /** failure! */
+    return ret;
+  }
+
+  Exec exe_cp;
+  const char *args[6];
+  int next = 0;
+  args[next++] = cp_path.buffer();
+  args[next++] = src;
+  args[next++] = dst;
+  args[next++] = nullptr;
+  exe_cp.argv = (const char **)args;
+  exe_cp.envp = envp;
+  return exe_cp.run();
+}
