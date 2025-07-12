@@ -200,7 +200,7 @@ void CharStream::replace_suffix(const char *path, const char *suffix) {
 
   if (path[l] == '.') {
     if (l != 0) {
-      this->append(path, l - 1);
+      this->append(path, l);
     }
     this->append(suffix);
   } else {
