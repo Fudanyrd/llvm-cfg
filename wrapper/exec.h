@@ -10,14 +10,17 @@ struct Exec {
 
   Exec &input(FileDescriptor *sin) {
     this->sin = sin;
+    return *this;
   }
 
   /** Capture data from output stream. */
   Exec &capture_stdout(FileDescriptor *sout) {
     this->sout = sout;
+    return *this;
   }
   Exec &capture_stderr(FileDescriptor *serr) {
     this->serr = serr;
+    return *this;
   }
 
   int run(void);

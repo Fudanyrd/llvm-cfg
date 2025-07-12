@@ -236,6 +236,9 @@ int ArgGenerator::execute() const {
       alst.push("-c");
       break;
     }
+    default: {
+      break;
+    }
   }
   if (parser.output_file) {
     alst.push("-o");
