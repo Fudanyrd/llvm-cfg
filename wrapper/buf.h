@@ -20,8 +20,16 @@
 #define INIT_CAPACITY 4096 // Default initial capacity for the buffer
 #endif                   // INIT_CAPACITY
 
+#ifndef DEBUG_PREFIX
 #define DEBUG_PREFIX "\033[01;36m[#]\033[0;m "
+#endif 
+#ifndef ERROR_PREFIX
 #define ERROR_PREFIX "\033[01;31m[ERR]\033[0;m "
+#endif
+
+#ifndef CFG_MKTEMP_TEMPLATE
+#define CFG_MKTEMP_TEMPLATE "/tmp/tmp.XXXXXXXXXX"
+#endif
 
 typedef const char *ccharptr_t;
 typedef ccharptr_t *cbuf_t;

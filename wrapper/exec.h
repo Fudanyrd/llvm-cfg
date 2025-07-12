@@ -1,3 +1,5 @@
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "buf.h"
@@ -29,6 +31,14 @@ struct Exec {
    * Eg, rm -> /usr/bin/rm in the stream.
    */
   int find_exe(const char *basename, CharStream &cs) const;
+
+  /** run mktemp and store the result in cs. */
+  static int mktemp(bool directory, CharStream &cs, 
+                    const char *template_,
+                    const char **envp);
+
+  static int rm(bool recursive, bool force, const char *arg,
+                const char **envp);
 
  private:
   FileDescriptor *sout{nullptr};

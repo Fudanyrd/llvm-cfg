@@ -171,3 +171,104 @@ int Exec::find_exe(const char *basename, CharStream &cs) const
   /** not found. */
   return 1;
 }
+
+int Exec::mktemp(bool directory, CharStream &cs, 
+                 const char *template_,
+                 const char **envp) {
+  Exec which_mktemp;
+  which_mktemp.envp = envp;
+  CharStream mktemp_path(64);
+  int ret = which_mktemp.find_exe("mktemp", mktemp_path);
+  if (ret != 0) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, ERROR_PREFIX "cannot locate mktemp\n");
+    #endif
+    /** failure! */
+    return ret;
+  }
+
+  Exec exe_mktemp;
+  const char *args[4];
+  int next = 0;
+  args[next++] = mktemp_path.buffer();
+  if (directory) {
+    args[next++] = "--directory";
+  }
+  args[next++] = template_;
+  args[next++] = nullptr;
+  exe_mktemp.argv = (const char **)args;
+  exe_mktemp.envp = envp;
+
+  FileDescriptor mktemp_output;
+  ret = exe_mktemp.capture_stdout(&mktemp_output)
+                  .run();
+  if (ret != 0) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, ERROR_PREFIX "cannot execute mktemp\n");
+    #endif
+    /** failure! */
+    return ret;
+  }
+  
+  /** parse output to get temp file name. */
+  cs.clear();
+  char ch;
+  auto nb = read(mktemp_output.fd, &ch, 1);
+  if (nb < 0) {
+    /** must exit when this happens. */
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      perror("Exec::mktemp: read");
+    #endif 
+    return 1;
+  }
+
+  while (nb > 0 && ch != '\n') {
+    cs.append(ch);
+    nb = read(mktemp_output.fd, &ch, 1);
+    if (nb < 0) {
+      /** must exit when this happens. */
+      #ifdef CFG_PRINT_DEBUG_OUTPUT
+        perror("Exec::mktemp: read");
+      #endif 
+      return 1;
+    }
+  }
+
+  cs.append((char)0);
+  #ifdef CFG_PRINT_DEBUG_OUTPUT
+    fprintf(stderr, DEBUG_PREFIX "create tempfile %s\n", cs.buffer());
+  #endif
+  return 0;
+}
+
+int Exec::rm(bool recurse, bool force,
+             const char *arg,
+             const char **envp) {
+  Exec which_rm;
+  which_rm.envp = envp;
+  CharStream rm_path(64);
+  int ret = which_rm.find_exe("rm", rm_path);
+  if (ret != 0) {
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, ERROR_PREFIX "cannot locate rm\n");
+    #endif
+    /** failure! */
+    return ret;
+  }
+
+  Exec exe_rm;
+  const char *args[6];
+  int next = 0;
+  args[next++] = rm_path.buffer();
+  if (recurse) {
+    args[next++] = "-r";
+  }
+  if (force) {
+    args[next++] = "-f";
+  }
+  args[next++] = arg;
+  args[next++] = nullptr;
+  exe_rm.argv = (const char **)args;
+  exe_rm.envp = envp;
+  return exe_rm.run();
+}
