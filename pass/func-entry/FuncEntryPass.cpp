@@ -214,7 +214,7 @@ Constant *FuncEntryPass::GetFuncEntry(Module &mod, Function &f) {
 }
 
 PreservedAnalyses FuncEntryPass::run(Module &mod, ModuleAnalysisManager &MAM) {
-  PtrTy = PointerType::get(Type::getVoidTy(mod.getContext()), 0);
+  PtrTy = PointerType::get(Type::getInt32Ty(mod.getContext()), 0);
   Triple triple = Triple(mod.getTargetTriple());
 
   std::vector<Constant *> init_vals;

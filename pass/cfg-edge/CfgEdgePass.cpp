@@ -208,19 +208,23 @@ static std::vector<Constant *> BuildCfg(Function &F, Module &M) {
         for (auto *Succ : successors(&block)) {
           auto *child = uset.root(Succ);
           if (iter->first != child) {
-            edges.push_back(hasSancovGuard[iter->first].second);
-            edges.push_back(hasSancovGuard[child].second);
-          }
-        }
-      }
-    }
+            auto *edge_src = (hasSancovGuard[iter->first].second);
+            auto *edge_dst = hasSancovGuard[child].second;
+            if (edge_src && edge_dst) {
+              edges.push_back(edge_src);
+              edges.push_back(edge_dst);
+            }
+          } /* if (iter->first != child) */
+        } /* for (auto *Succ : successors) */
+      } /* if uset.root(&block) == iter->first */
+    } /** for (auto &block : F) */
   }
 
   return edges;
 }
 
 PreservedAnalyses CfgEdgePass::run(Module &mod, ModuleAnalysisManager &MAM) {
-  PtrTy = PointerType::get(Type::getVoidTy(mod.getContext()), 0);
+  PtrTy = PointerType::get(Type::getInt32Ty(mod.getContext()), 0);
 
   size_t func_cnt = 0;
   for (auto &func : mod) {

@@ -124,7 +124,7 @@ static void BuildCallGraph(Function &F, Module &M,
     return;
   }
 
-  auto *PtrTy = PointerType::get(Type::getVoidTy(M.getContext()), 0);
+  auto *PtrTy = PointerType::get(Type::getInt32Ty(M.getContext()), 0);
   std::unordered_map<BasicBlock *, std::pair<bool, Constant *>> hasSancovGuard;
   struct UnionFindSet {
     std::unordered_map<BasicBlock *, BasicBlock *> parent;
@@ -234,7 +234,7 @@ PreservedAnalyses FuncCallPass::run(Module &mod, ModuleAnalysisManager &MAM) {
     BuildCallGraph(func, mod, init_vals);
   }
 
-  PtrTy = PointerType::get(Type::getVoidTy(mod.getContext()), 0);
+  PtrTy = PointerType::get(Type::getInt32Ty(mod.getContext()), 0);
   Triple triple = Triple(mod.getTargetTriple());
 
   auto *ArrayTy = ArrayType::get(PtrTy, init_vals.size());
