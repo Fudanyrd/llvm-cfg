@@ -244,11 +244,13 @@ int ArgGenerator::execute() const {
     }
     for (const char *input : parser.input_files) {
       output.replace_suffix(input, parser.output_suffix());
+      const char *opath = (parser.input_files.size() <= 1 && parser.output_file) 
+        ? parser.output_file : output.buffer(); 
       if (force_emit_ll(input, temp.buffer()) != 0) {
         ret = 1;
         break;
       }
-      if (compile_ll(temp.buffer(), output.buffer())) {
+      if (compile_ll(temp.buffer(), opath)) {
         ret = 1;
         break;
       }
@@ -387,11 +389,6 @@ int ArgGenerator::compile_ll(const char *input, const char *output) const {
   }
 
   alst.push(parser.cc_name);
-  const std::vector<const char *> &extras = extra_compile_args;
-  for (const char *arg : extras) {
-    alst.push(arg);
-  }
-
   for (const char *pass : extra_pass_names) {
     alst.push(pass);
   }

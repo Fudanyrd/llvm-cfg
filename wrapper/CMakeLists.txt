@@ -13,8 +13,9 @@ add_definitions(-DFUNC_ENTRY_PASS="${CMAKE_CURRENT_BINARY_DIR}/../pass/func-entr
 add_definitions(-DCFG_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(wrapper STATIC 
-    wrapper.cpp
-    buf.cpp)
+    argparse.cpp
+    buf.cpp
+    exec.cpp)
 
 add_executable(cc cc.cpp)
 target_link_libraries(cc wrapper)
