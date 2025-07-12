@@ -1,13 +1,11 @@
 #include "argparse.h"
 #include "exec.h"
 
-#define DEBUG_PREFIX "\033[01;36m[#]\033[0;m "
-
 ArgParse::ArgParse(char **argv, char **envp) {
   if (true) {
     FileDescriptor fobj;
     Exec exe;
-    const char *which_clang[] = {"/usr/bin/which", "clang"};
+    const char *which_clang[] = {"/usr/bin/which", "clang", nullptr};
     exe.argv = which_clang;
     exe.envp = (cbuf_t)envp;
     
@@ -18,7 +16,7 @@ ArgParse::ArgParse(char **argv, char **envp) {
   if (true) {
     FileDescriptor fobj;
     Exec exe;
-    const char *which_clang[] = {"/usr/bin/which", "clang++"};
+    const char *which_clang[] = {"/usr/bin/which", "clang++", nullptr};
     exe.argv = which_clang;
     exe.envp = (cbuf_t)envp;
     if (exe.run() == 0) {
@@ -47,10 +45,16 @@ ArgParse::ArgParse(char **argv, char **envp) {
   if (print_debug_output) {
     fprintf(stderr, DEBUG_PREFIX "sizeof arg buffer %ld\n", arg_buf.getCapacity());
     fprintf(stderr, DEBUG_PREFIX "sizeof env buffer %ld\n", env_buf.getCapacity());
+    fprintf(stderr, DEBUG_PREFIX "sizeof aux buffer %ld\n", aux_buf.getCapacity());
   }
 
   this->parse_env();
   this->parse_arg();
+
+  if (!this->cc_name || !this->cxx_name) {
+    this->err_message = (ERROR_PREFIX "cannot run which clang/clang++\n"
+    "Hint: specify by CFG_CC and CFG_CXX environment variables.\n");
+  }
 }
 
 void ArgParse::parse_env(void) {
