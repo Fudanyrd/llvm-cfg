@@ -2,6 +2,7 @@
 #include "exec.h"
 
 #include <stack>
+#include <utility>
 
 const char *ArgParse::suffix_of(const char *path) {
   size_t i = strlen(path);
@@ -443,31 +444,32 @@ int ArgGenerator::execute() const {
   } tempfiles;
   tempfiles.envp = this->elst.buf;
 
-  std::stack<const char *> sources;
-  std::stack<const char *> preprocessed;
-  std::stack<const char *> assembly;
-  std::stack<const char *> ll_assembly;
-  std::stack<const char *> object;
-  std::stack<const char *> ll_object;
+  std::stack<std::pair<const char *, const char *>> sources;
+  std::stack<std::pair<const char *, const char *>> preprocessed;
+  std::stack<std::pair<const char *, const char *>> assembly;
+  std::stack<std::pair<const char *, const char *>> ll_assembly;
+  std::stack<std::pair<const char *, const char *>> object;
+  std::stack<std::pair<const char *, const char *>> ll_object;
   /* maybe linker-script, static/shared libraries. */
   std::vector<const char *> ld_script;
 
   for (const char *input : parser.input_files) {
     const char *suffix = ArgParse::suffix_of(input);
+    const std::pair<const char *,const char *> obj = {input, input};
     if (strcmp(suffix, ".c") == 0 || strcmp(suffix, ".cpp") == 0
     || strcmp(suffix, ".cc") == 0 || strcmp(suffix, ".cxx") == 0) {
-      sources.push(input);
+      sources.push(obj);
     } else if (strcmp(suffix, ".i") == 0 || strcmp(suffix, ".ipp") == 0) {
-      preprocessed.push(input);
+      preprocessed.push(obj);
     } else if (strcmp(suffix, ".s") == 0 || strcmp(suffix, ".S") == 0
     || strcmp(suffix, ".asm") == 0) {
-      assembly.push(input);
+      assembly.push(obj);
     } else if (strcmp(suffix, ".ll") == 0) {
-      ll_assembly.push(input);
+      ll_assembly.push(obj);
     } else if (strcmp(suffix, ".bc") == 0) {
-      ll_object.push(input);
+      ll_object.push(obj);
     } else if (strcmp(suffix, ".o") == 0) {
-      object.push(input);
+      object.push(obj);
     } else {
       // assume to be a linker script.
     #ifdef CFG_PRINT_DEBUG_OUTPUT
@@ -482,7 +484,8 @@ int ArgGenerator::execute() const {
   /** source -> preprocessed */
   bool ctmp = parser.stage != ArgParse::Stage::PREPROCESS;
   while (!sources.empty()) {
-    const char *input = sources.top(), *output;
+    const auto obj = sources.top();
+    const char *input = obj.first, *output;
     bool iscpp = strcmp(ArgParse::suffix_of(input), ".c") == 0;
     sources.pop();
 
@@ -494,7 +497,7 @@ int ArgGenerator::execute() const {
                                     : CFG_MKTEMP_TEMPLATE ".ipp");
     } else {
       tbuf.clear();
-      tbuf.replace_suffix(input, iscpp ? ".i" : ".ipp");
+      tbuf.replace_suffix(obj.second, iscpp ? ".i" : ".ipp");
       output = tbuf.buffer();
     }
 
@@ -503,7 +506,7 @@ int ArgGenerator::execute() const {
       fflush(stderr);
       return 1;
     }
-    preprocessed.push(output);
+    preprocessed.push({output, obj.second});
   }
   if (parser.stage == ArgParse::Stage::PREPROCESS) {
     // can exit.
@@ -513,7 +516,8 @@ int ArgGenerator::execute() const {
   /** preprocessed -> ll_assembly, use clang compiler */
   ctmp = !(parser.stage == ArgParse::Stage::ASSEMBLY && parser.output_llvm);
   while (!preprocessed.empty()) {
-    const char *input = preprocessed.top();
+    const auto obj = preprocessed.top();
+    const char *input = obj.first;
     preprocessed.pop();
 
     const char *output;
@@ -530,7 +534,7 @@ int ArgGenerator::execute() const {
     } else {
       /** use default output */
       tbuf.clear();
-      tbuf.replace_suffix(input, ".ll");
+      tbuf.replace_suffix(obj.second, ".ll");
       output = tbuf.buffer();
     }
 
@@ -539,6 +543,7 @@ int ArgGenerator::execute() const {
     const auto &passes = this->extra_pass_names;
     const size_t npass = passes.size();
     TempPool tpool;
+    tpool.envp = this->elst.buf;
     ofile = (npass == 0) ? output : tpool.next(
       CFG_MKTEMP_TEMPLATE ".ll");
     if (this->compiler(input, ofile, true) != 0) {
@@ -565,7 +570,7 @@ int ArgGenerator::execute() const {
     }
     
     /** tpool now deletes all temp file. */
-    ll_assembly.push(output);
+    ll_assembly.push({output, obj.second});
   }
   if (parser.stage == ArgParse::Stage::ASSEMBLY && parser.output_llvm) {
     /** stop here. */
@@ -575,7 +580,8 @@ int ArgGenerator::execute() const {
   /** ll_assembly -> assembly */
   ctmp = !(parser.stage == ArgParse::Stage::ASSEMBLY);
   while (!ll_assembly.empty()) {
-    const char *input = ll_assembly.top();
+    const auto obj = ll_assembly.top();
+    const char *input = obj.first;
     ll_assembly.pop();
 
     const char *output;
@@ -590,16 +596,16 @@ int ArgGenerator::execute() const {
     } else {
       /** use default output */
       tbuf.clear();
-      tbuf.replace_suffix(input, ".s");
+      tbuf.replace_suffix(obj.second, ".s");
       output = tbuf.buffer();
     }
 
-    if (llvm_as(input, output) != 0) {
+    if (compiler(input, output, false) != 0) {
       fprintf(stderr, ERROR_PREFIX "llvm assembler failed.\n");
       return 1;
     }
 
-    assembly.push(output);
+    assembly.push({output, obj.second});
   }
   if (parser.stage == ArgParse::Stage::ASSEMBLY) {
     return 0;
@@ -608,7 +614,8 @@ int ArgGenerator::execute() const {
   /** assembly -> object */
   ctmp = !(parser.stage == ArgParse::Stage::OBJECT);
   while (!assembly.empty()) {
-    const char *input = assembly.top();
+    const auto obj = assembly.top();
+    const char *input = obj.first;
     assembly.pop();
 
     const char *output;
@@ -623,7 +630,7 @@ int ArgGenerator::execute() const {
     } else {
       /** use default output */
       tbuf.clear();
-      tbuf.replace_suffix(input, ".o");
+      tbuf.replace_suffix(obj.second, ".o");
       output = tbuf.buffer();
     }
 
@@ -632,7 +639,7 @@ int ArgGenerator::execute() const {
       return 1;
     } 
 
-    object.push(output);
+    object.push({output, obj.first});
   }
   if (parser.stage == ArgParse::Stage::OBJECT) {
     return 0;
@@ -649,7 +656,7 @@ int ArgGenerator::execute() const {
     }
 
     while (!object.empty()) {
-      const char *input = object.top();
+      const char *input = object.top().first;
       object.pop();
       ld_script.push_back(input);
     }
