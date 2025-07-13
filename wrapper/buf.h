@@ -229,6 +229,15 @@ struct CharStream {
 
   void replace_suffix(const char *path, const char *suffix);
 
+  CharStream(const CharStream &that) = delete;
+  CharStream &operator=(const CharStream &that) = delete;
+  CharStream(CharStream &&that) {
+    this->buf = that.buf;
+    this->size = that.size;
+    this->capacity = that.capacity;
+    that.buf = nullptr;
+  }
+
  private:
   char *buf{nullptr};
   size_t size, capacity{INIT_CAPACITY};
