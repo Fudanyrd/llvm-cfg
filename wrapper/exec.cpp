@@ -19,6 +19,16 @@ int Exec::run() {
   int pout[2] = {-1, -1};
   int perr[2] = {-1, -1};
 
+#ifdef CFG_PRINT_DEBUG_OUTPUT
+  fprintf(stderr, DEBUG_PREFIX);
+  for (int i = 0; argv[i]; i++) {
+    fprintf(stderr, argv[i]);
+    fprintf(stderr, " ");
+  }
+  fprintf(stderr, "\n");
+  fflush(stderr);
+#endif
+
   if (sin != nullptr) {
     assert(sin->fd >= 0 && "invalid fd in stream input");    
     if (pipe(pin) != 0) {

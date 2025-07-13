@@ -24,6 +24,24 @@ class ArgParse {
     return env_buf;
   }
 
+  static Stage NextStage(Stage s) {
+    if (s == Stage::LINK) {
+      return s;
+    }
+
+    switch (s) {
+      case (Stage::PREPROCESS): {
+        return Stage::ASSEMBLY;
+      }
+      case (Stage::ASSEMBLY): {
+        return Stage::OBJECT;
+      }
+      case (Stage::OBJECT): {
+        return Stage::LINK;
+      }
+    }
+  }
+
   const char *output_suffix() const;
   static const char *suffix_of(const char *path);
   bool runpass() const {
@@ -73,7 +91,17 @@ class ArgParse {
 
 class ArgGenerator {
  public:
-  ArgGenerator(ArgParse &argparser): parser(argparser) {}
+  ArgGenerator(ArgParse &argparser): parser(argparser) {
+    /** prepare env vars */
+    const StringBuf &envs = parser.Envp();
+    const char *eiter = envs.buffer();
+    const char *eend = envs.buffer_end();
+    while (eiter < eend) {
+      elst.push(eiter);
+      eiter = envs.next(eiter);
+    }
+    elst.push(nullptr);
+  }
   virtual ~ArgGenerator() = default;
 
   virtual int execute() const;
@@ -99,10 +127,21 @@ class ArgGenerator {
   std::vector<const char *> extra_link_args;
   std::vector<const char *> extra_pass_names;
   StringBuf aux_buf{StringBuf(1024)};
+  struct ArgList elst;
   CharStream stream;
 
   /** output must be .ll */
   int force_emit_ll(const char *input, const char *output) const;
   int compile_ll(const char *ll_input, const char *output) const;
+  
+  int preprocessor(const char *input, const char *output) const;
+  int compiler(const char *input, const char *output, bool llvm) const;
+  int assembler(const char *input, const char *output, bool llvm) const;
+  int llvm_as(const char *input, const char *output) const {
+    const char *suffix = ArgParse::suffix_of(input);
+    assert(strcmp(suffix, ".ll") == 0 && "not an .ll file");
+    return assembler(input, output, false);
+  }
+  int transform(const char *pass, const char *input, const char *output) const;
   int linker(const std::vector<const char *> &inputs, const char *output) const;
 };

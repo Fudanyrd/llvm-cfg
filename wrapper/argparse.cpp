@@ -1,6 +1,8 @@
 #include "argparse.h"
 #include "exec.h"
 
+#include <stack>
+
 const char *ArgParse::suffix_of(const char *path) {
   size_t i = strlen(path);
   if (i == 0) {
@@ -73,13 +75,19 @@ ArgParse::ArgParse(char **argv, char **envp) {
     fprintf(stderr, DEBUG_PREFIX "sizeof env buffer %ld\n", env_buf.getCapacity());
   }
 
-  this->parse_env();
   this->parse_arg();
+  this->parse_env();
 
   if (!this->cc_name || !this->cxx_name) {
     this->err_message = (ERROR_PREFIX "cannot run which clang/clang++\n"
     "Hint: specify by CFG_CC and CFG_CXX environment variables.\n");
+    return;
   }
+
+#ifdef CFG_PRINT_DEBUG_OUTPUT
+  fprintf(stderr, DEBUG_PREFIX "use CC=%s\n", this->cc_name);
+  fprintf(stderr, DEBUG_PREFIX "use CXX=%s\n", this->cxx_name);
+#endif 
 }
 
 void ArgParse::parse_env(void) {
@@ -209,130 +217,8 @@ static void alst_xpush(struct ArgList &l, const char *arg) {
   }
 }
 
-int ArgGenerator::execute() const {
-  struct ArgList alst;
-  struct ArgList elst;
-
-  const StringBuf &envs = parser.Envp();
-  const char *eiter = envs.buffer();
-  const char *eend = envs.buffer_end();
-  while (eiter < eend) {
-    elst.push(eiter);
-    eiter = envs.next(eiter);
-  }
-
-  if (!extra_pass_names.empty() && parser.runpass()) {
-    int ret = 0;
-    CharStream output(64);
-    CharStream temp(64);
-  #ifdef CFG_PRINT_DEBUG_OUTPUT
-    CharStream ll_output(128);
-  #endif 
-    Exec mktemp;
-    if (mktemp.mktemp(false, temp, CFG_MKTEMP_TEMPLATE ".ll", elst.buf) != 0) {
-      /** failure. */
-      return 1;
-    }
-    for (const char *input : parser.input_files) {
-      output.replace_suffix(input, parser.output_suffix());
-      const char *opath = (parser.input_files.size() <= 1 && parser.output_file) 
-        ? parser.output_file : output.buffer(); 
-    #ifdef CFG_PRINT_DEBUG_OUTPUT
-      ll_output.replace_suffix(opath, ".ll");
-    #endif
-      if (force_emit_ll(input, temp.buffer()) != 0) {
-        ret = 1;
-        break;
-      }
-      if (compile_ll(temp.buffer(), opath)) {
-        ret = 1;
-        break;
-      }
-      output.clear();
-    #ifdef CFG_PRINT_DEBUG_OUTPUT
-      (void)Exec::cp(temp.buffer(), ll_output.buffer(), elst.buf);
-      ll_output.clear();
-    #endif
-    }
-
-    Exec::rm(false, true, temp.buffer(), elst.buf);
-    return ret;
-  }
-
-  alst.push(parser.link_lang == ArgParse::Lang::C ? parser.cc_name
-                                                  : parser.cxx_name);
-  const std::vector<const char *> &extras = 
-    parser.stage == ArgParse::Stage::LINK ? extra_link_args
-                                          : extra_compile_args;
-  for (const char *arg : extras) {
-    alst.push(arg);
-  }
-  alst_xpush(alst, parser.debug);
-  alst_xpush(alst, parser.opt_level);
-  if (parser.read_stdin && parser.stage != ArgParse::Stage::PREPROCESS) {
-    alst.push("-x");
-    alst.push(parser.lang);
-  }
-
-  for (const char *arg : parser.input_files) {
-    alst.push(arg);
-  }
-  for (const char *arg : parser.include_dirs) {
-    alst.push(arg);
-  }
-  for (const char *arg : parser.defines) {
-    alst.push(arg);
-  }
-  for (const char *arg : parser.flags) {
-    alst.push(arg);
-  }
-  for (const char *arg : parser.margs) {
-    alst.push(arg);
-  }
-
-  switch (parser.stage) {
-    case (ArgParse::Stage::PREPROCESS): {
-      alst.push("-E");
-      break;
-    }
-    case (ArgParse::Stage::ASSEMBLY): {
-      alst.push("-S");
-      break;
-    }
-    case (ArgParse::Stage::OBJECT): {
-      alst.push("-c");
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-  if (parser.output_file) {
-    alst.push("-o");
-    alst.push(parser.output_file);
-  }
-
-
-  alst.push(nullptr);
-  elst.push(nullptr);
-
-  Exec exe;
-  exe.argv = alst.buf;
-  exe.envp = elst.buf;
-  return exe.run();
-}
-
 int ArgGenerator::force_emit_ll(const char *input, const char *output) const {
   struct ArgList alst;
-  struct ArgList elst;
-
-  const StringBuf &envs = parser.Envp();
-  const char *eiter = envs.buffer();
-  const char *eend = envs.buffer_end();
-  while (eiter < eend) {
-    elst.push(eiter);
-    eiter = envs.next(eiter);
-  }
 
   alst.push(parser.link_lang == ArgParse::Lang::C ? parser.cc_name
                                                   : parser.cxx_name);
@@ -366,7 +252,6 @@ int ArgGenerator::force_emit_ll(const char *input, const char *output) const {
   alst.push("-o");
   alst.push(output);
   alst.push(nullptr);
-  elst.push(nullptr);
 
   Exec exe;
   exe.argv = alst.buf;
@@ -376,15 +261,6 @@ int ArgGenerator::force_emit_ll(const char *input, const char *output) const {
 
 int ArgGenerator::compile_ll(const char *input, const char *output) const {
   struct ArgList alst;
-  struct ArgList elst;
-
-  const StringBuf &envs = parser.Envp();
-  const char *eiter = envs.buffer();
-  const char *eend = envs.buffer_end();
-  while (eiter < eend) {
-    elst.push(eiter);
-    eiter = envs.next(eiter);
-  }
 
   alst.push(parser.cc_name);
   for (const char *pass : extra_pass_names) {
@@ -396,10 +272,393 @@ int ArgGenerator::compile_ll(const char *input, const char *output) const {
   alst.push("-o");
   alst.push(output);
   alst.push(nullptr);
-  elst.push(nullptr);
 
   Exec exe;
   exe.argv = alst.buf;
   exe.envp = elst.buf;
   return exe.run();
+}
+
+int ArgGenerator::preprocessor(const char *input, const char *output) const
+{
+  struct ArgList alst;
+
+  /** prepare env vars */
+  const char *suffix = ArgParse::suffix_of(input);
+  alst.push(strcmp(suffix, ".c") == 0 ? parser.cc_name : parser.cxx_name);
+  for (const char *arg : parser.include_dirs) {
+    alst.push(arg);
+  }
+  for (const char *arg : parser.defines) {
+    alst.push(arg);
+  }
+  for (const char *arg : parser.margs) {
+    alst.push(arg);
+  }
+  for (const char *arg : parser.flags) {
+    alst.push(arg);
+  }
+  if (parser.lang) {
+    alst.push("-x");
+    alst.push(parser.lang);
+  }
+  alst_xpush(alst, parser.debug);
+  alst.push("-E");
+  alst.push(input);
+
+  if (output != nullptr) {
+    alst.push("-o");
+    alst.push(output);
+  } /* else print to stdout. */
+  alst.push(nullptr);
+
+  Exec exe;
+  exe.argv = alst.buf;
+  exe.envp = elst.buf;
+  return exe.run();
+}
+
+int ArgGenerator::compiler(const char *input, const char *output, bool llvm) const
+{
+  /** .i  .ipp => .s */
+  struct ArgList alst;
+
+  alst.push(parser.cc_name);
+  for (const char *arg : parser.flags) {
+    alst.push(arg);
+  }
+  for (const char *arg : this->extra_compile_args) {
+    alst.push(arg);
+  }
+  alst_xpush(alst, parser.debug);
+  alst_xpush(alst, parser.opt_level);
+  alst.push("-S");
+  alst.push(input);
+  if (llvm) {
+    alst.push("-emit-llvm");
+  }
+  alst.push("-o");
+  alst.push(output);
+  alst.push(nullptr);
+
+  Exec exe;
+  exe.argv = alst.buf;
+  exe.envp = elst.buf;
+  return exe.run();
+}
+
+int ArgGenerator::assembler(const char *input, const char *output, bool llvm) const
+{
+  struct ArgList alst;
+
+  alst.push(parser.cc_name);
+  alst_xpush(alst, parser.debug);
+  alst_xpush(alst, parser.opt_level);
+  alst.push("-c");
+  alst.push(input);
+  if (llvm) {
+    alst.push("-emit-llvm");
+  }
+  alst.push("-o");
+  alst.push(output);
+  alst.push(nullptr);
+
+  Exec exe;
+  exe.argv = alst.buf;
+  exe.envp = elst.buf;
+  return exe.run();
+}
+
+int ArgGenerator::linker(const std::vector<const char *> &inputs, const char *output) const {
+  struct ArgList alst;
+
+  if (output == nullptr) {
+    output = "a.out";
+  }
+
+  alst.push(parser.cxx_name);
+  for (const char *arg : inputs) {
+    alst.push(arg);
+  }
+  for (const char *arg : parser.flags) {
+    alst.push(arg);
+  }
+  for (const char *arg : this->extra_link_args) {
+    alst.push(arg);
+  }
+  alst_xpush(alst, parser.debug);
+  alst.push("-o");
+  alst.push(output);
+  alst.push(nullptr);
+
+  Exec exe;
+  exe.argv = alst.buf;
+  exe.envp = elst.buf;
+  return exe.run();
+}
+
+int ArgGenerator::transform(const char *pass, const char *input, 
+                            const char *output) const {
+  assert(strncmp(pass, "-fpass-plugin=", 14) == 0 && "invalid pass name");
+  struct ArgList alst;
+
+  alst.push(parser.cc_name);
+  alst_xpush(alst, parser.debug);
+  alst.push(pass);
+  alst.push("-S");
+  alst.push(input);
+  alst.push("-o");
+  alst.push(output);
+  alst.push("-emit-llvm");
+  alst.push(nullptr);
+
+  Exec exe;
+  exe.argv = alst.buf;
+  exe.envp = elst.buf;
+  return exe.run();
+}
+
+int ArgGenerator::execute() const {
+  struct TempPool {
+    TempPool() = default;
+    ~TempPool() {
+      for (CharStream &tempfile : pool) {
+        (void)Exec::rm(false, true, tempfile.buffer(), envp);
+      }
+    }
+
+    const char *next(const char *tmpl) {
+      pool.push_back(CharStream(64));
+      CharStream &tmp = pool.back();
+      (void)Exec::mktemp(false, tmp, tmpl, this->envp);
+      return tmp.buffer();
+    }
+
+    const char *operator[](size_t i) const {
+      return pool[i].buffer();
+    }
+
+    std::vector<CharStream> pool;
+    const char **envp{nullptr};
+  } tempfiles;
+  tempfiles.envp = this->elst.buf;
+
+  std::stack<const char *> sources;
+  std::stack<const char *> preprocessed;
+  std::stack<const char *> assembly;
+  std::stack<const char *> ll_assembly;
+  std::stack<const char *> object;
+  std::stack<const char *> ll_object;
+  /* maybe linker-script, static/shared libraries. */
+  std::vector<const char *> ld_script;
+
+  for (const char *input : parser.input_files) {
+    const char *suffix = ArgParse::suffix_of(input);
+    if (strcmp(suffix, ".c") == 0 || strcmp(suffix, ".cpp") == 0
+    || strcmp(suffix, ".cc") == 0 || strcmp(suffix, ".cxx") == 0) {
+      sources.push(input);
+    } else if (strcmp(suffix, ".i") == 0 || strcmp(suffix, ".ipp") == 0) {
+      preprocessed.push(input);
+    } else if (strcmp(suffix, ".s") == 0 || strcmp(suffix, ".S") == 0
+    || strcmp(suffix, ".asm") == 0) {
+      assembly.push(input);
+    } else if (strcmp(suffix, ".ll") == 0) {
+      ll_assembly.push(input);
+    } else if (strcmp(suffix, ".bc") == 0) {
+      ll_object.push(input);
+    } else if (strcmp(suffix, ".o") == 0) {
+      object.push(input);
+    } else {
+      // assume to be a linker script.
+    #ifdef CFG_PRINT_DEBUG_OUTPUT
+      fprintf(stderr, "%s is a linker script\n", input);
+    #endif
+      ld_script.push_back(input);
+    }
+  }
+
+  CharStream tbuf(64);
+
+  /** source -> preprocessed */
+  bool ctmp = parser.stage != ArgParse::Stage::PREPROCESS;
+  while (!sources.empty()) {
+    const char *input = sources.top(), *output;
+    bool iscpp = strcmp(ArgParse::suffix_of(input), ".c") == 0;
+    sources.pop();
+
+    if (parser.input_files.size() == 1 && parser.stage == ArgParse::Stage::PREPROCESS
+     && parser.output_file != nullptr) {
+      output = parser.output_file;
+    } else if (ctmp) {
+      output = tempfiles.next(iscpp ? CFG_MKTEMP_TEMPLATE ".i"
+                                    : CFG_MKTEMP_TEMPLATE ".ipp");
+    } else {
+      tbuf.clear();
+      tbuf.replace_suffix(input, iscpp ? ".i" : ".ipp");
+      output = tbuf.buffer();
+    }
+
+    if (this->preprocessor(input, output) != 0) {
+      fprintf(stderr, ERROR_PREFIX " failed to preprocess %s\n", input);
+      fflush(stderr);
+      return 1;
+    }
+    preprocessed.push(output);
+  }
+  if (parser.stage == ArgParse::Stage::PREPROCESS) {
+    // can exit.
+    return 0;
+  }
+
+  /** preprocessed -> ll_assembly, use clang compiler */
+  ctmp = !(parser.stage == ArgParse::Stage::ASSEMBLY && parser.output_llvm);
+  while (!preprocessed.empty()) {
+    const char *input = preprocessed.top();
+    preprocessed.pop();
+
+    const char *output;
+    const char *ofile;
+    if (parser.input_files.size() == 1 
+     && parser.stage == ArgParse::Stage::ASSEMBLY
+     && parser.output_file != nullptr 
+     && parser.output_llvm) {
+      /** use specified output. */
+      output = parser.output_file;
+    } else if (ctmp) {
+      /** use temp file */
+      output = tempfiles.next(CFG_MKTEMP_TEMPLATE ".ll");
+    } else {
+      /** use default output */
+      tbuf.clear();
+      tbuf.replace_suffix(input, ".ll");
+      output = tbuf.buffer();
+    }
+
+
+    /** run pass plugin on the ll assembly. */
+    const auto &passes = this->extra_pass_names;
+    const size_t npass = passes.size();
+    TempPool tpool;
+    ofile = (npass == 0) ? output : tpool.next(
+      CFG_MKTEMP_TEMPLATE ".ll");
+    if (this->compiler(input, ofile, true) != 0) {
+      fprintf(stderr, ERROR_PREFIX "failed to run compiler\n");
+      return 1;
+    }
+    if (npass != 0) {
+      for (size_t i = 0; i + 1 < npass; i++) {
+        input = ofile;
+        ofile = tpool.next(CFG_MKTEMP_TEMPLATE ".ll");
+  
+        if (this->transform(passes[i], input, ofile) != 0) {
+          fprintf(stderr, ERROR_PREFIX "failed to run pass %s\n", passes[i]);
+          return 1;
+        }
+      }
+
+      input = ofile;
+      ofile = output;
+      if (this->transform(passes.back(), input, ofile) != 0) {
+        fprintf(stderr, ERROR_PREFIX "failed to run pass %s\n", passes.back());
+        return 1;
+      }
+    }
+    
+    /** tpool now deletes all temp file. */
+    ll_assembly.push(output);
+  }
+  if (parser.stage == ArgParse::Stage::ASSEMBLY && parser.output_llvm) {
+    /** stop here. */
+    return 0;
+  }
+
+  /** ll_assembly -> assembly */
+  ctmp = !(parser.stage == ArgParse::Stage::ASSEMBLY);
+  while (!ll_assembly.empty()) {
+    const char *input = ll_assembly.top();
+    ll_assembly.pop();
+
+    const char *output;
+    if (parser.input_files.size() == 1 
+     && parser.stage == ArgParse::Stage::ASSEMBLY
+     && parser.output_file != nullptr) {
+      /** use specified output. */
+      output = parser.output_file;
+    } else if (ctmp) {
+      /** use temp file */
+      output = tempfiles.next(CFG_MKTEMP_TEMPLATE ".s");
+    } else {
+      /** use default output */
+      tbuf.clear();
+      tbuf.replace_suffix(input, ".s");
+      output = tbuf.buffer();
+    }
+
+    if (llvm_as(input, output) != 0) {
+      fprintf(stderr, ERROR_PREFIX "llvm assembler failed.\n");
+      return 1;
+    }
+
+    assembly.push(output);
+  }
+  if (parser.stage == ArgParse::Stage::ASSEMBLY) {
+    return 0;
+  }
+
+  /** assembly -> object */
+  ctmp = !(parser.stage == ArgParse::Stage::OBJECT);
+  while (!assembly.empty()) {
+    const char *input = assembly.top();
+    assembly.pop();
+
+    const char *output;
+    if (parser.input_files.size() == 1 
+     && parser.stage == ArgParse::Stage::OBJECT
+     && parser.output_file != nullptr) {
+      /** use specified output. */
+      output = parser.output_file;
+    } else if (ctmp) {
+      /** use temp file */
+      output = tempfiles.next(CFG_MKTEMP_TEMPLATE ".o");
+    } else {
+      /** use default output */
+      tbuf.clear();
+      tbuf.replace_suffix(input, ".o");
+      output = tbuf.buffer();
+    }
+
+    if (this->assembler(input, output, false) != 0) {
+      fprintf(stderr, ERROR_PREFIX "failed to run assembler\n");
+      return 1;
+    } 
+
+    object.push(output);
+  }
+  if (parser.stage == ArgParse::Stage::OBJECT) {
+    return 0;
+  }
+
+  /** linking */
+  ctmp = false;
+  if (true) {
+    const char *output;
+    if (parser.output_file != nullptr) {
+      output = parser.output_file;
+    } else {
+      output = "a.out";
+    }
+
+    while (!object.empty()) {
+      const char *input = object.top();
+      object.pop();
+      ld_script.push_back(input);
+    }
+
+    if (this->linker(ld_script, output) != 0) {
+      fprintf(stderr, ERROR_PREFIX "linker command failed\n");
+      return 1;
+    }
+  }
+
+  return 0;
 }
