@@ -163,9 +163,6 @@ int Exec::find_exe(const char *basename, CharStream &cs) const
       cs.append(pathbuf + i, j - i);
       cs.append('/');
       cs.append(basename);
-      #ifdef CFG_PRINT_DEBUG_OUTPUT
-        fprintf(stderr, DEBUG_PREFIX "trying %s\n", cs.buffer());
-      #endif 
 
       fobj.setFd(open(cs.buffer(), O_RDONLY));
       if (fobj.valid()) {

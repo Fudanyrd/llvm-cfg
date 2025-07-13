@@ -1,6 +1,7 @@
 #include "argparse.h"
 #include "exec.h"
 
+#include <queue>
 #include <stack>
 #include <utility>
 
@@ -323,13 +324,18 @@ int ArgGenerator::compiler(const char *input, const char *output, bool llvm) con
 {
   /** .i  .ipp => .s */
   struct ArgList alst;
+  const char *suffix = ArgParse::suffix_of(input);
+  bool append_flag = strcmp(suffix, ".ll") != 0;
+  bool iscpp = strcmp(suffix, ".cpp") == 0;
 
-  alst.push(parser.cc_name);
-  for (const char *arg : parser.flags) {
-    alst.push(arg);
-  }
-  for (const char *arg : this->extra_compile_args) {
-    alst.push(arg);
+  alst.push(iscpp ? parser.cxx_name : parser.cc_name);
+  if (append_flag) {
+    for (const char *arg : parser.flags) {
+      alst.push(arg);
+    }
+    for (const char *arg : this->extra_compile_args) {
+      alst.push(arg);
+    }
   }
   alst_xpush(alst, parser.debug);
   alst_xpush(alst, parser.opt_level);
@@ -494,10 +500,10 @@ int ArgGenerator::execute() const {
       output = parser.output_file;
     } else if (ctmp) {
       output = tempfiles.next(iscpp ? CFG_MKTEMP_TEMPLATE ".i"
-                                    : CFG_MKTEMP_TEMPLATE ".ipp");
+                                    : CFG_MKTEMP_TEMPLATE ".cpp");
     } else {
       tbuf.clear();
-      tbuf.replace_suffix(obj.second, iscpp ? ".i" : ".ipp");
+      tbuf.replace_suffix(obj.second, iscpp ? ".i" : ".cpp");
       output = tbuf.buffer();
     }
 
