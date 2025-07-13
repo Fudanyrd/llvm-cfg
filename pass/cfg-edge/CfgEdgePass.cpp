@@ -242,13 +242,13 @@ PreservedAnalyses CfgEdgePass::run(Module &mod, ModuleAnalysisManager &MAM) {
                            Constant::getNullValue(ArrayTy), oss.str());
 
     Triple triple = Triple(mod.getTargetTriple());
-    if (triple.supportsCOMDAT() &&
+    /* if (triple.supportsCOMDAT() &&
         (func.hasComdat() || triple.isOSBinFormatELF() ||
          !func.isInterposable())) {
       if (auto Comdat = getOrCreateFunctionComdat(func, triple)) {
         CfgEdgeArray->setComdat(Comdat);
       }
-    }
+    } */
 
     CfgEdgeArray->setInitializer(ConstantArray::get(ArrayTy, edges));
     CfgEdgeArray->setSection(section);
