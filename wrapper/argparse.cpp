@@ -40,24 +40,13 @@ const char *ArgParse::output_suffix() const {
 
 ArgParse::ArgParse(char **argv, char **envp) {
   if (true) {
-    FileDescriptor fobj;
     Exec exe;
-    const char *which_clang[] = {"/usr/bin/which", "clang", nullptr};
-    exe.argv = which_clang;
-    exe.envp = (cbuf_t)envp;
-    
-    if (exe.run() == 0) {
-      aux_buf.append_line(fobj.fd, &cc_name);
+    exe.envp = (const char **)envp;
+    if (exe.find_exe("clang", this->clang) == 0) {
+      this->cc_name = this->clang.buffer();
     }
-  }
-  if (true) {
-    FileDescriptor fobj;
-    Exec exe;
-    const char *which_clang[] = {"/usr/bin/which", "clang++", nullptr};
-    exe.argv = which_clang;
-    exe.envp = (cbuf_t)envp;
-    if (exe.run() == 0) {
-      aux_buf.append_line(fobj.fd, &cxx_name);
+    if (exe.find_exe("clang++", this->clangpp) == 0) {
+      this->cxx_name = this->clangpp.buffer();
     }
   }
 
@@ -82,7 +71,6 @@ ArgParse::ArgParse(char **argv, char **envp) {
   if (print_debug_output) {
     fprintf(stderr, DEBUG_PREFIX "sizeof arg buffer %ld\n", arg_buf.getCapacity());
     fprintf(stderr, DEBUG_PREFIX "sizeof env buffer %ld\n", env_buf.getCapacity());
-    fprintf(stderr, DEBUG_PREFIX "sizeof aux buffer %ld\n", aux_buf.getCapacity());
   }
 
   this->parse_env();

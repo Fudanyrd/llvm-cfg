@@ -64,7 +64,8 @@ class ArgParse {
   StringBuf arg_buf;
   StringBuf env_buf;
   /** this buffer is small. */
-  StringBuf aux_buf{StringBuf(256)};
+  CharStream clang{CharStream(64)};
+  CharStream clangpp{CharStream(64)};
 
   void parse_arg(void);
   void parse_env(void);
@@ -103,4 +104,5 @@ class ArgGenerator {
   /** output must be .ll */
   int force_emit_ll(const char *input, const char *output) const;
   int compile_ll(const char *ll_input, const char *output) const;
+  int linker(const std::vector<const char *> &inputs, const char *output) const;
 };
