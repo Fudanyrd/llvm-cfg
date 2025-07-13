@@ -130,6 +130,12 @@ void ArgParse::parse_arg(void) {
     }
 
     if (iter[0] != '-') {
+      const char *suffix = ArgParse::suffix_of(iter);
+      if (strcmp(suffix, ".a") == 0) {
+        this->static_libs.push_back(iter);
+      } else if (strcmp(suffix, ".so") == 0) {
+        this->shared_libs.push_back(iter);
+      } else
       input_files.push_back(iter);
       continue;
     }
@@ -665,6 +671,13 @@ int ArgGenerator::execute() const {
       const char *input = object.top().first;
       object.pop();
       ld_script.push_back(input);
+    }
+
+    for (const char *shared_lib : parser.shared_libs) {
+      ld_script.push_back(shared_lib);
+    }
+    for (const char *static_lib : parser.static_libs) {
+      ld_script.push_back(static_lib);
     }
 
     if (this->linker(ld_script, output) != 0) {

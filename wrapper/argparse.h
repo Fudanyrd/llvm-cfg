@@ -64,6 +64,8 @@ class ArgParse {
   std::vector<const char *> defines;
   std::vector<const char *> flags;
   std::vector<const char *> margs; /* -MD, -MT, -MF, etc */
+  std::vector<const char *> static_libs;
+  std::vector<const char *> shared_libs;
 
   Stage stage{Stage::LINK};
 
