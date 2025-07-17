@@ -1,7 +1,7 @@
 // Take an ELF file instrumented with
 // -fsanitize-coverage=trace-pc-guard,pc-table(,no-prune), recover its control
 // flow graph, including intra-function control-flow and inter-function
-// control-flow.
+// call.
 
 extern "C" {
 #include <elf.h>
